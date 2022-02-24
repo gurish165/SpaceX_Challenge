@@ -23,6 +23,6 @@ int main(int argc, char** argv){
         return 1;
     }
     BeamPlanning newBeamPlanning(fin);
-
+    newBeamPlanning.runOptimization();
     return 0;
 }
