@@ -8,5 +8,5 @@
 set -Eeuo pipefail
 set -x
 # Run example test
-g++ -Wall -Werror -pedantic --std=c++11 -g main.cpp helper.h -o main.exe
+g++ -Wall -Werror -pedantic --std=c++11 -g main.cpp BeamPlanning.h objects.h helpers.h -o main.exe
 ./main.exe test_cases/00_example.txt

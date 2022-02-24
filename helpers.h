@@ -11,15 +11,10 @@
 #include "objects.h"
 using namespace std;
 
-void process_line(string line){
-    cout << line << endl;
+double dot_product(Coords u, Coords v){
+    return (u.x * v.x + u.y * v.y + u.z + v.z);
 }
 
-void read_input(ifstream &fin){
-    string line = "";
-    while(getline(fin, line)){
-        if(line[0] != '#' && line != ""){
-            process_line(line);
-        }
-    }
+double vec_magnitude(Coords vec){
+    
 }

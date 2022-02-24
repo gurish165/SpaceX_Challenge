@@ -8,8 +8,7 @@
 #include <array>
 #include <cstdlib>
 #include <cstring>
-#include "helper.h"
-#include "objects.h"
+#include "BeamPlanning.h"
 using namespace std;
 
 int main(int argc, char** argv){
@@ -23,7 +22,7 @@ int main(int argc, char** argv){
         cout << "Error opening " << file_in << endl;
         return 1;
     }
-    read_input(fin);
+    BeamPlanning newBeamPlanning(fin);
 
     return 0;
 }
