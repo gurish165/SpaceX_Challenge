@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+# lscount
+#
+# List files and folders, followed by a count
+# Stop on errors, print commands
+# See https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
+set -Eeuo pipefail
+set -x
+# Run example test
+g++ -Wall -Werror -pedantic --std=c++11 -g main.cpp helper.h -o main.exe
+./main.exe test_cases/00_example.txt |./evaluate.py test_cases/00_example.txt

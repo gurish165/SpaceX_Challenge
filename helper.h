@@ -11,6 +11,15 @@
 #include "objects.h"
 using namespace std;
 
-void print_hello(){
-    cout << "hello" << endl;
+void process_line(string line){
+    cout << line << endl;
+}
+
+void read_input(ifstream &fin){
+    string line = "";
+    while(getline(fin, line)){
+        if(line[0] != '#' && line != ""){
+            process_line(line);
+        }
+    }
 }
