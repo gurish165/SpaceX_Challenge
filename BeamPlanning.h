@@ -27,6 +27,9 @@ class BeamPlanning{
         // matrix where each row is each starlink satellite, and each column is a user
         // the character denotes type of connection
         vector<vector<char>> connection_to_Starlink;
+        // 3D vector that contains angles between users on the same satellite
+        // Each 'layer' represents the sat_id which is a matrix of user to user angles
+        vector<vector<vector<double>>> angles_between_users;
     public:
 
         // Default Constructor
@@ -44,6 +47,9 @@ class BeamPlanning{
             vector<vector<char>> temp(Satellites.size(), vector<char> (Users.size(), '\0'));
             vector<int> temp_connections(Satellites.size(), 0);
             vector<int> temp_connections2(Users.size(), 0);
+            vector<vector<vector<double>>> angles_between_users(Satellites.size(), 
+                                        vector<vector<double>> (Users.size(), 
+                                        vector<double>(Users.size(), -1))); 
             connection_to_Starlink = temp;
             Starlink_num_connections = temp_connections;
             User_num_connections = temp_connections2;
@@ -215,6 +221,8 @@ class BeamPlanning{
             for(size_t sat_id = 1; sat_id < Satellites.size(); sat_id++){
                 for(size_t user_id = 1; user_id < Users.size(); user_id++){
                     if(Starlink_num_connections[sat_id] > 32 && connection_to_Starlink[sat_id][user_id]){
+                        // Double check that the user will still be connected if this is terminated
+                        assert(User_num_connections[user_id] > 1);
                         connection_to_Starlink[sat_id][user_id] = '\0';
                         Starlink_num_connections[sat_id]--;
                         User_num_connections[user_id]--;
@@ -233,19 +241,20 @@ class BeamPlanning{
 
         }
 
-        // Connects valid Starlinks to users
-        // Removes connections with interference
-        // Rebalances Starlinks with >32 connections
-        // Removes connections for Starlinks with >32 connections
-        // Rebalances to average connections across satellites
-        // Uses BFS to color the beams for every satellite
-        // Prints output
+        // Runs optimization model
         void runOptimization(){
+            // Connects valid Starlinks to users
             connect_all_Starlinks();
+            // Removes connections with interference
             cleanInterference();
+            // Rebalances Starlinks with >32 connections
             rebalance32();
+            // Removes connections for Starlinks with >32 connections
             cleanExtra();
+            // Rebalances so each user is only connected to 1 satellite
             rebalanceUserMultiConnections();
+            // Uses BFS to color the beams for every satellite
+            // Prints output
             printResults();
         }
 };
