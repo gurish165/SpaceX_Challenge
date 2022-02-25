@@ -24,6 +24,6 @@ double angle_between_vec(Coords u, Coords v){
     double u_dot_v = dot_product(u, v);
     double mag_u = vec_magnitude(u);
     double mag_v = vec_magnitude(v);
-    theta = acos((u_dot_v)/(mag_u*mag_v));
+    double theta = acos((u_dot_v)/(mag_u*mag_v));
     return theta;
 }

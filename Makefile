@@ -4,6 +4,9 @@ CXXFLAGS ?= -Wall -Werror -pedantic --std=c++11 -g
 main.exe: main.cpp BeamPlanning.h objects.h helpers.h
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
+my_executable: main.cpp BeamPlanning.h objects.h helpers.h
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
 .SUFFIXES:
 
 .PHONY: clean

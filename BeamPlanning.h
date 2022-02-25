@@ -8,6 +8,7 @@
 #include <array>
 #include <cmath>
 #include <cstdlib>
+#include <queue>
 #include <cstring>
 #include "helpers.h"
 using namespace std;
@@ -18,7 +19,11 @@ class BeamPlanning{
         vector<Coords> Users;
         vector<Coords> Interferers;
         // vector that tracks the number of users each Starlink is connected to
-        vector<int> num_connections;
+        // sums matrix from left to right
+        vector<int> Starlink_num_connections;
+        // vector that tracks the number of Starlinks each user is connected to
+        // Sums matrix from top down
+        vector<int> User_num_connections;
         // matrix where each row is each starlink satellite, and each column is a user
         // the character denotes type of connection
         vector<vector<char>> connection_to_Starlink;
@@ -31,16 +36,25 @@ class BeamPlanning{
             Satellites.push_back({-1, -1,-1});
             Users.push_back({-1, -1,-1});
             Interferers.push_back({-1, -1,-1});
-            num_connections.push_back(-1);
             read_input(fin);
         }
         
         // initializes matrix that shows connection between Starlink and User
         void connection_to_Starlink_init(){
             vector<vector<char>> temp(Satellites.size(), vector<char> (Users.size(), '\0'));
-            vector<int> temp_connections(Satellites.size(), 0)
+            vector<int> temp_connections(Satellites.size(), 0);
+            vector<int> temp_connections2(Users.size(), 0);
             connection_to_Starlink = temp;
-            num_connections = temp_connections;
+            Starlink_num_connections = temp_connections;
+            User_num_connections = temp_connections2;
+        }
+
+        // Fills priority queue with number of satellites and their indeces
+        void init_pq(priority_queue<pair<int, int>> &pq){
+            for (size_t sat_id = 1; sat_id < Satellites.size(); sat_id++){
+                int count = Starlink_num_connections[sat_id];
+                pq.push(make_pair(count, sat_id));
+            }
         }
 
         // Processes line from read_input
@@ -87,7 +101,8 @@ class BeamPlanning{
                 for (size_t user_id = 1; user_id < Users.size(); user_id++){
                     if(user_in_Starlink_range(sat_id, user_id)){
                         connection_to_Starlink[sat_id][user_id] = 'A';
-                        num_connections[sat_id]++;
+                        Starlink_num_connections[sat_id]++;
+                        User_num_connections[user_id]++;
                     }
                 }
             }
@@ -96,13 +111,13 @@ class BeamPlanning{
         // Checks if Starlink is in range of user
         // Beam from Starlink to user must be 45 deg within users vertical
         // All users' normals pass through (0, 0, 0)
-        bool user_in_Starlink_range(int &sat_id, int &user_id){
+        bool user_in_Starlink_range(size_t &sat_id, size_t &user_id){
             Coords sat_coords = Satellites[sat_id];
             Coords user_coords = Users[user_id];
             double theta = -1;
             Coords u = user_coords;
             Coords v = {sat_coords.x - u.x, sat_coords.y - u.y, sat_coords.z - u.z};
-            theta = angle_between_vec(u, v)
+            theta = angle_between_vec(u, v);
             return (theta <= 0.785398);
         }
 
@@ -122,6 +137,11 @@ class BeamPlanning{
                     }
                 }
             }
+            for(size_t user_id = 1; user_id < Users.size(); user_id++){
+                if (User_num_connections[user_id] > 1){
+                    cout << "User " << user_id << " connected to " << User_num_connections[user_id] << " satellites" << endl; 
+                }
+            }
         }
 
         // Loops through all interference satellites
@@ -133,7 +153,8 @@ class BeamPlanning{
                     for (size_t user_id = 1; user_id < Users.size(); user_id++){
                         if(connection_to_Starlink[sat_id][user_id] && interferes_with_Starlink(int_id, sat_id, user_id)){
                             connection_to_Starlink[sat_id][user_id] = '\0';
-                            num_connections[sat_id]--;
+                            Starlink_num_connections[sat_id]--;
+                            User_num_connections[user_id]--;
                         }
                     }
                 }
@@ -141,7 +162,8 @@ class BeamPlanning{
         }
         
         // Determines if Interference Sat interferes with Starlink
-        bool interferes_with_Starlink(int &intf_id, int &sat_id, int &user_id){
+        // Interference beam cannot be with 20 deg of Starlink beam from user's perspective
+        bool interferes_with_Starlink(size_t &intf_id, size_t &sat_id, size_t &user_id){
             Coords sat_coords = Satellites[sat_id];
             Coords user_coords = Users[user_id];
             Coords intf_coords = Interferers[intf_id];
@@ -149,17 +171,81 @@ class BeamPlanning{
             Coords u = {sat_coords.x - user_coords.x, sat_coords.y - user_coords.y, sat_coords.z - user_coords.z};
             Coords v = {intf_coords.x - user_coords.x, intf_coords.y - user_coords.y, intf_coords.z - user_coords.z};
             theta = angle_between_vec(u, v);
-            return (theta < 20);
+            return (theta < 0.349066);
+        }
+
+        // For satellites with more than 32 connections, we clean out connection to
+        //      users that already have service
+        void rebalance32(){
+            // Priority queue where the key is the number of people the Starlink
+            //      is connected to and the value is the index of the Satellite
+            priority_queue<pair<int, int>> pq_connections;
+            init_pq(pq_connections);
+            if (pq_connections.empty()) return;
+            while(!pq_connections.empty()){
+                pair<int, int> curr = pq_connections.top();
+                if(curr.first > 32){
+                    int sat_id = curr.second;
+                    disconnect_multi_served_users(sat_id);
+                }
+                pq_connections.pop();
+            }
+        }   
+
+        // Loops through a Satellites connections (left to right)
+        // For every user connected to that satellite see if they are connected to another
+        // If they are, terminate connection to sat_id
+        // Update row and column totals
+        void disconnect_multi_served_users(int sat_id){
+            for (size_t user_id = 1; user_id < Users.size(); user_id++){
+                if(connection_to_Starlink[sat_id][user_id]){
+                    if(User_num_connections[user_id] > 1){
+                        // terminate current connection
+                        connection_to_Starlink[sat_id][user_id] = '\0';
+                        Starlink_num_connections[sat_id]--;
+                        User_num_connections[user_id]--;
+                    }
+                }
+            }
+        }
+
+        // Looks for satellites with more than 32 connections
+        // Terminate extra connections
+        void cleanExtra(){
+            for(size_t sat_id = 1; sat_id < Satellites.size(); sat_id++){
+                for(size_t user_id = 1; user_id < Users.size(); user_id++){
+                    if(Starlink_num_connections[sat_id] > 32 && connection_to_Starlink[sat_id][user_id]){
+                        connection_to_Starlink[sat_id][user_id] = '\0';
+                        Starlink_num_connections[sat_id]--;
+                        User_num_connections[user_id]--;
+                    }
+                }
+            }
+        }
+
+        // Loop through users
+        // If a user is connected to multiple satellites, cut down to 1
+        // Choose the ones ones to connect by exploring how many <10 deg issues that
+        //      beam causes (cut the ones that cause the most interference 
+        //      within their satellite)
+        // Save angles between connections to use later
+        void rebalanceUserMultiConnections(){
+
         }
 
         // Connects valid Starlinks to users
         // Removes connections with interference
         // Rebalances Starlinks with >32 connections
+        // Removes connections for Starlinks with >32 connections
+        // Rebalances to average connections across satellites
         // Uses BFS to color the beams for every satellite
         // Prints output
         void runOptimization(){
             connect_all_Starlinks();
             cleanInterference();
+            rebalance32();
+            cleanExtra();
+            rebalanceUserMultiConnections();
             printResults();
         }
 };
