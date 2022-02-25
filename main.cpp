@@ -22,6 +22,7 @@ int main(int argc, char** argv){
         cout << "Error opening " << file_in << endl;
         return 1;
     }
+    cout << "# Creating new BeamPlanning class..." << endl;
     BeamPlanning newBeamPlanning(fin);
     newBeamPlanning.runOptimization();
     return 0;
