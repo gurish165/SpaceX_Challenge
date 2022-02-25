@@ -130,29 +130,6 @@ class BeamPlanning{
             return (theta <= 0.785398);
         } // user_in_Starlink_range
 
-        // Prints out all the connections between Starlink and Users
-        // Style:
-        // sat 1 beam 1 user 1 color A
-        // sat 2 beam 1 user 2 color A
-        void printResults(){
-            for(size_t sat_id = 1; sat_id < Satellites.size(); sat_id++){
-                int beam_count = 1;
-                for (size_t user_id = 1; user_id < Users.size(); user_id++){
-                    if(connection_to_Starlink[sat_id][user_id]){
-                        cout << "sat " << sat_id << " beam " << beam_count
-                            << " user " << user_id << " color " << connection_to_Starlink[sat_id][user_id]
-                            << endl;
-                            beam_count++;
-                    }
-                }
-            }
-            int total = 0;
-            for(size_t user_id = 1; user_id < Users.size(); user_id++){
-                if(User_num_connections[user_id] > 0)total++;
-            }
-            cout << "# " << total << " users served" << endl;
-        } // printResults
-
         // Loops through all interference satellites
         // Checks if there is interference <20 deg
         // If there is, the connection from Starlink to user becomes /0
@@ -313,7 +290,7 @@ class BeamPlanning{
 
         // Searches satellite connections using breadth first search
         // Labels connections with A, B, C, D
-        void BFS(size_t sat_id){
+        void DFS(size_t sat_id){
             // hashmap that maps from user_id to visited bool
             unordered_map<size_t, bool> visited;
             for(size_t user_id = 1; user_id < Users.size(); user_id++){
@@ -325,13 +302,13 @@ class BeamPlanning{
             size_t root_user = 0;
             while(available_root(root_user, visited)){
                 visited[root_user] = true;
-                // queue of user_ids
-                stack<size_t> user_queue;
+                // stack of user_ids
+                stack<size_t> user_stack;
                 size_t letter = 1;
-                user_queue.push(root_user);
-                while(!user_queue.empty()){
-                    size_t top_user = user_queue.top();
-                    user_queue.pop();
+                user_stack.push(root_user);
+                while(!user_stack.empty()){
+                    size_t top_user = user_stack.top();
+                    user_stack.pop();
                     if(connection_to_Starlink[sat_id][top_user]){
                         connection_to_Starlink[sat_id][top_user] = get_label(letter);
                     }
@@ -340,13 +317,12 @@ class BeamPlanning{
                     for(size_t adj_user_idx = 0; adj_user_idx < adjacent_users.size(); adj_user_idx++){
                         if(!visited[adjacent_users[adj_user_idx]]){
                             visited[adjacent_users[adj_user_idx]] = true;
-                            user_queue.push(adjacent_users[adj_user_idx]);
+                            user_stack.push(adjacent_users[adj_user_idx]);
                         }
                     }
                 } // while
-                // cout << "# help im stuck" << endl;
             } // while
-        } // BFS
+        } // DFS
 
         // Checks to see if there is another available root
         // If there is, update root_user
@@ -372,13 +348,10 @@ class BeamPlanning{
                 if (connection_to_Starlink[sat_id][other_user_id] && user_id != other_user_id){
                     Coords other_user = Users[other_user_id];
                     Coords v = {other_user.x - sat_coords.x, other_user.y - sat_coords.y, other_user.z - sat_coords.z};
-                    // cout << "v.x " << v.x << " v.y " << v.y << " v.z " << v.z << endl;
                     // see if we alreay have angle_between saved, otherwise calculate it
                     double theta = angle_between_vec(u, v);
-                    // cout << "theta: " << theta << " for User " << user_id << " and User " << other_user_id << endl;
                     // see if angle is smaller than 10 degrees
                     if (theta < 0.174533){
-                        // cout << "Found adj user" << endl;
                         output.push_back(other_user_id);
                     }
                 }
@@ -387,23 +360,20 @@ class BeamPlanning{
         } // get_adjacent_users
 
         // Changes frequency of beams for every satellite
-        void labelWithBFS(){
+        void labelWithDFS(){
             for(size_t sat_id = 1; sat_id < Satellites.size(); sat_id++){
                 if(Starlink_num_connections[sat_id] > 1){
-                    BFS(sat_id);
+                    DFS(sat_id);
                 }
             }
-        } // labelWithBFS
+        } // labelWithDFS
 
         // For every satellite, removes conflicting frequencies
         void removeConflictingFreq(){
             for(size_t sat_id = 1; sat_id < Satellites.size(); sat_id++){
-                // cout << "Examining user1 in sat" << sat_id << endl;
                 for(size_t user1 = 1; user1 < Users.size(); user1++){
                     if(connection_to_Starlink[sat_id][user1]){
-                    // cout << "Examining user2 in sat " << sat_id << " in " << user1 << endl;
                         for(size_t user2 = user1+1; user2 < Users.size(); user2++){
-                            // cout << "Examining connection fro user 2: " << user2 << " and user 1: " << user1 << endl;
                             if(connection_to_Starlink[sat_id][user2]){
                                 if(connection_to_Starlink[sat_id][user1] == connection_to_Starlink[sat_id][user2]){
                                     if(freq_interferes(user1, user2, sat_id)){
@@ -434,6 +404,29 @@ class BeamPlanning{
             return false;
         } // freq_interferes
 
+        // Prints out all the connections between Starlink and Users
+        // Style:
+        // sat 1 beam 1 user 1 color A
+        // sat 2 beam 1 user 2 color A
+        void printResults(){
+            for(size_t sat_id = 1; sat_id < Satellites.size(); sat_id++){
+                int beam_count = 1;
+                for (size_t user_id = 1; user_id < Users.size(); user_id++){
+                    if(connection_to_Starlink[sat_id][user_id]){
+                        cout << "sat " << sat_id << " beam " << beam_count
+                            << " user " << user_id << " color " << connection_to_Starlink[sat_id][user_id]
+                            << endl;
+                            beam_count++;
+                    }
+                }
+            }
+            int total = 0;
+            for(size_t user_id = 1; user_id < Users.size(); user_id++){
+                if(User_num_connections[user_id] > 0)total++;
+            }
+            cout << "# " << total << " users served" << endl;
+        } // printResults
+
         // Runs optimization model
         void runOptimization(){
             // Connects valid Starlinks to users
@@ -451,9 +444,9 @@ class BeamPlanning{
             // Rebalances so each user is only connected to 1 satellite
             cout << "# rebalanceUserMultiConnections() in progress..." << endl;
             rebalanceUserMultiConnections();
-            // Uses BFS to color the beams for every satellite
-            cout << "# labelWithBFS() in progress..." << endl;
-            labelWithBFS();
+            // Uses DFS to color the beams for every satellite
+            cout << "# labelWithDFS() in progress..." << endl;
+            labelWithDFS();
             // Remove conflicting beam frequencies
             cout << "# removeConflictingFreq() in progress..." << endl;
             removeConflictingFreq();

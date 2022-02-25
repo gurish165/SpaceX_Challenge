@@ -6,13 +6,11 @@ This document describes how to use the code package that will complete the Starl
 ## Setup and Installation
 
 Download and unzip files from folder shared via email.
-
 This package requires g++ (GNU c++ compiler) to run.
 
 
 ### macOS
 macOS has a built-in shell. Open the “Terminal” application.
-
 Install a compiler.
 
 ```cmd
@@ -172,7 +170,7 @@ void cleanInterference(){
 ```
 
 ### Meet 32 Connection Constraint
-At this point we have reduced our connection space to all connections that can possibly be made by a Starlink satellite. Now we have to determine which connections to preserve to meet the remaining constraints. I decided it was most logical to clean up Starlink satellites with >32 connections, starting with the satellite with the most connections.
+At this point, we have reduced our connection space to all connections that can possibly be made by a Starlink satellite. Now, we have to determine which connections to preserve to meet the remaining constraints. I decided it was most logical to clean up Starlink satellites with >32 connections, starting with the satellite with the most connections.
 ```c++
 void rebalance32(){
 	// Priority queue where the key is the number of people the Starlink
@@ -240,6 +238,100 @@ void rebalanceUserMultiConnections(){
 ```
 
 ### Assign Frequencies to Beams
+At this point, our satellites are connected to <=32 users each, and each user is only connected to one satellite. The final constraint we have to consider is handling beams from the same satellite within 10 degrees of each other. Let's consider 1 satellite. We can imagine each beam to be a node in a graph, and it is connected to other beams within 10 degrees of it. So for every satellite, we will have groups of beams connected to each other on the condition that the beams are within 10 degrees of each other.
 
+```c++
+vector<size_t> get_adjacent_users(size_t  user_id, size_t  sat_id){
+	vector<size_t> output;
+	Coords sat_coords = Satellites[sat_id];
+	Coords user_coords = Users[user_id];
+	Coords u = {user_coords.x - sat_coords.x, user_coords.y - sat_coords.y, user_coords.z - sat_coords.z};
+		for(size_t  other_user_id = 1; other_user_id < Users.size(); other_user_id++){
+			if (connection_to_Starlink[sat_id][other_user_id] && user_id != other_user_id){
+				Coords other_user = Users[other_user_id];
+				Coords v = {other_user.x - sat_coords.x, other_user.y - sat_coords.y, other_user.z - sat_coords.z};
+				// see if we alreay have angle_between saved, otherwise calculate it
+				double theta = angle_between_vec(u, v);
+				// see if angle is smaller than 10 degrees
+				if (theta < 0.174533){
+					output.push_back(other_user_id);
+				}
+			}
+		}
+	return output;
+} // get_adjacent_users
+```
+This function will be used to conduct a Depth-First-Search on our graph. This heuristic will allow us to maximize which nodes can be with each other by alternating labels as the DFS is conducted (A, B, C, D). This is the more complicated section of the algorithm as this search and label procedure will dictate how many users will be served.
+```c++
+void DFS(size_t  sat_id){
+	// hashmap that maps from user_id to visited bool
+	unordered_map<size_t, bool> visited;
+	for(size_t  user_id = 1; user_id < Users.size(); user_id++){
+		// Add connected users to visited
+		if(connection_to_Starlink[sat_id][user_id]){
+			visited[user_id] = false;
+		}
+	}
+	size_t root_user = 0;
+	while(available_root(root_user, visited)){
+		visited[root_user] = true;
+		// stack of user_ids
+		stack<size_t> user_stack;
+		size_t  letter = 1;
+		user_stack.push(root_user);
+		while(!user_stack.empty()){
+			size_t  top_user = user_stack.top();
+			user_stack.pop();
+			if(connection_to_Starlink[sat_id][top_user]){
+				connection_to_Starlink[sat_id][top_user] = get_label(letter);
+			}
+			letter++;
+			vector<size_t> adjacent_users = get_adjacent_users(top_user, sat_id);
+			for(size_t  adj_user_idx = 0; adj_user_idx < adjacent_users.size(); adj_user_idx++){
+				if(!visited[adjacent_users[adj_user_idx]]){
+					visited[adjacent_users[adj_user_idx]] = true;
+					user_stack.push(adjacent_users[adj_user_idx]);
+				}
+			}
+		} // while
+	} // while
+} // DFS
+```
+
+### Meet Frequency Constraint
+The final step is to clean up frequencies that are interfering with each other. Beams with the same label that are within 10 degrees of each other are conflicting, and only 1 can remain. We will do this by looping through every satellite and test combinations of beams for conflicts. In this case, it doesn't matter what beam we choose to keep because this is the last step.
+```c++
+void  removeConflictingFreq(){
+	for(size_t  sat_id = 1; sat_id < Satellites.size(); sat_id++){
+		for(size_t  user1 = 1; user1 < Users.size(); user1++){
+			if(connection_to_Starlink[sat_id][user1]){
+				for(size_t  user2 = user1+1; user2 < Users.size(); user2++){
+					if(connection_to_Starlink[sat_id][user2]){
+						if(connection_to_Starlink[sat_id][user1] == connection_to_Starlink[sat_id][user2]){
+							if(freq_interferes(user1, user2, sat_id)){
+								connection_to_Starlink[sat_id][user1] = '\0';
+								Starlink_num_connections[sat_id]--;
+								User_num_connections[user1]--;
+	...			
+} // removeConflictingFreq
+```
+
+### Print Output
+That's it! All we have to do is loop through our matrix and print out the satellite, the beam's frequency, and the user.
+```c++
+void printResults(){
+	for(size_t sat_id = 1; sat_id < Satellites.size(); sat_id++){
+		int beam_count = 1;
+		for (size_t user_id = 1; user_id < Users.size(); user_id++){
+			if(connection_to_Starlink[sat_id][user_id]){
+				cout << "sat " << sat_id << " beam " << beam_count
+				<< " user " << user_id << " color " << connection_to_Starlink[sat_id][user_id]
+				<< endl;
+				beam_count++;
+			}
+		}
+	}
+} // printResults
+```
 ## Authors and acknowledgment
 [Gurish Sharma](https://www.linkedin.com/in/gurish-sharma-/)
