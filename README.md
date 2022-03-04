@@ -194,7 +194,7 @@ Once we have cleaned up the satellites with >32 connections in order from greate
 ```c++
 void cleanExtra(){
 	for(size_t sat_id = 1; sat_id < Satellites.size(); sat_id++){
-		for(size_t  user_id = 1; user_id < Users.size(); user_id++){
+		for(size_t user_id = 1; user_id < Users.size(); user_id++){
 			if(Starlink_num_connections[sat_id] > 32 && connection_to_Starlink[sat_id][user_id]){
 				connection_to_Starlink[sat_id][user_id] = '\0';
 				Starlink_num_connections[sat_id]--;
