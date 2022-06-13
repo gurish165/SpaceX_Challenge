@@ -301,7 +301,7 @@ void DFS(size_t  sat_id){
 ### Meet Frequency Constraint
 The final step is to clean up frequencies that are interfering with each other. Beams with the same label that are within 10 degrees of each other are conflicting, and only 1 can remain. We will do this by looping through every satellite and test combinations of beams for conflicts. In this case, it doesn't matter what beam we choose to keep because this is the last step.
 ```c++
-void  removeConflictingFreq(){
+void removeConflictingFreq(){
 	for(size_t sat_id = 1; sat_id < Satellites.size(); sat_id++){
 		for(size_t user1 = 1; user1 < Users.size(); user1++){
 			if(connection_to_Starlink[sat_id][user1]){
