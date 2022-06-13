@@ -306,12 +306,12 @@ void  removeConflictingFreq(){
 		for(size_t  user1 = 1; user1 < Users.size(); user1++){
 			if(connection_to_Starlink[sat_id][user1]){
 				for(size_t  user2 = user1+1; user2 < Users.size(); user2++){
-					if(connection_to_Starlink[sat_id][user2]){
-						if(connection_to_Starlink[sat_id][user1] == connection_to_Starlink[sat_id][user2]){
-							if(freq_interferes(user1, user2, sat_id)){
-								connection_to_Starlink[sat_id][user1] = '\0';
-								Starlink_num_connections[sat_id]--;
-								User_num_connections[user1]--;
+					if(connection_to_Starlink[sat_id][user2]
+					   && connection_to_Starlink[sat_id][user1] == connection_to_Starlink[sat_id][user2]
+					   && freq_interferes(user1, user2, sat_id)){
+						connection_to_Starlink[sat_id][user1] = '\0';
+						Starlink_num_connections[sat_id]--;
+						User_num_connections[user1]--;
 	...			
 } // removeConflictingFreq
 ```
